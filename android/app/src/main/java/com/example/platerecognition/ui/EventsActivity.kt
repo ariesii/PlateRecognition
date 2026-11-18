@@ -1,6 +1,6 @@
 package com.example.platerecognition.ui
 
-import android.app.ActivityNotFoundException
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
 import android.graphics.Bitmap
