@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#101820">
+    <androidx.camera.view.PreviewView android:id="@+id/preview"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        app:implementationMode="compatible" />
+    <com.example.platerecognition.camera.PlateOverlay android:id="@+id/overlay"
+        android:layout_width="match_parent" android:layout_height="match_parent" />
+    <TextView android:id="@+id/status"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="bottom" android:background="#DD101820"
+        android:padding="16dp" android:textColor="#FFFFFF" android:textSize="16sp"
+        android:text="@string/initializing" />
+</FrameLayout>

@@ -1,0 +1,39 @@
+name: Android debug APK
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'android/**'
+      - 'PLateDetection_yolov5/test/yolov5plate.onnx'
+      - 'PlateRecognitionOCRV6/models/medium/inference.onnx'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK platform
+        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Verify bundled upstream models
+        run: |
+          printf '%s  %s\n' \
+            '472ec204f4866824287cb4093cf11e5b6ef355a35447f3969120288dd01b0161' 'PLateDetection_yolov5/test/yolov5plate.onnx' \
+            '9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba' 'PlateRecognitionOCRV6/models/medium/inference.onnx' \
+            | sha256sum --check
+      - name: Assemble debug APK
+        run: bash android/gradlew --project-dir android :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plate-recognition-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
