@@ -26,44 +26,42 @@ class DailyPlateStore(private val context: Context) : SQLiteOpenHelper(context, 
         error("No migration from schema $oldVersion to $newVersion")
     }
 
-    /** Reclaim an interrupted write before starting the analyzer. */
+    /** Reclaim interrupted writes. Several plates may share a single photographed frame. */
     fun recoverInterrupted() {
         val db = writableDatabase
-        val stale = mutableListOf<Pair<String, String>>()
-        db.query("captures", arrayOf("day", "plate", "uri"), "state=?", arrayOf("pending"),
+        val uris = mutableSetOf<String>()
+        db.query("captures", arrayOf("uri"), "state=?", arrayOf("pending"),
             null, null, null).use { cursor ->
-            while (cursor.moveToNext()) {
-                if (!cursor.isNull(2)) {
-                    // Failure must stop startup rather than allow a second photo.
-                    context.contentResolver.delete(Uri.parse(cursor.getString(2)), null, null)
-                }
-                stale += cursor.getString(0) to cursor.getString(1)
-            }
+            while (cursor.moveToNext()) if (!cursor.isNull(0)) uris += cursor.getString(0)
         }
-        stale.forEach { (day, plate) ->
-            db.delete("captures", "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending"))
-        }
+        // Failure must stop startup rather than allow a second photo.
+        uris.forEach { context.contentResolver.delete(Uri.parse(it), null, null) }
+        db.delete("captures", "state=?", arrayOf("pending"))
     }
 
     fun countForDay(day: String): Int = readableDatabase.rawQuery(
         "SELECT COUNT(*) FROM captures WHERE day=? AND state=?", arrayOf(day, "saved")
     ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) }
 
-    /** Stores the analyzed frame, not a delayed ImageCapture frame, to keep text and photo in sync. */
-    fun saveOnce(day: String, text: String, frame: Bitmap, results: List<PlateResult>, atMillis: Long): Boolean {
-        val plate = StabilityGate.normalize(text) ?: return false
+    /** Stores one annotated analyzed frame for all newly stable plates in that frame. */
+    fun saveNew(day: String, candidates: List<PlateResult>, frame: Bitmap,
+                results: List<PlateResult>, atMillis: Long): List<String> {
         val db = writableDatabase
-        val reservation = ContentValues().apply {
-            put("day", day); put("plate", plate); put("state", "pending")
-        }
-        if (db.insertWithOnConflict("captures", null, reservation, SQLiteDatabase.CONFLICT_IGNORE) == -1L) {
-            return false
-        }
+        val inserted = mutableListOf<String>()
         var media: Uri? = null
         try {
+            candidates.mapNotNull { StabilityGate.normalize(it.text) }.distinct().forEach { plate ->
+                val reservation = ContentValues().apply {
+                    put("day", day); put("plate", plate); put("state", "pending")
+                }
+                if (db.insertWithOnConflict("captures", null, reservation, SQLiteDatabase.CONFLICT_IGNORE) != -1L) {
+                    inserted += plate
+                }
+            }
+            if (inserted.isEmpty()) return emptyList()
             val date = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.ROOT).format(Date(atMillis))
             val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, "${date}_${plate}.jpg")
+                put(MediaStore.Images.Media.DISPLAY_NAME, "${date}_${inserted.first()}.jpg")
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/PlateRecognition")
                 put(MediaStore.Images.Media.IS_PENDING, 1)
@@ -72,9 +70,11 @@ class DailyPlateStore(private val context: Context) : SQLiteOpenHelper(context, 
                 "MediaStore refused image creation"
             }
             media = created
-            check(db.update("captures", ContentValues().apply { put("uri", created.toString()) },
-                "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending")) == 1) {
-                "Cannot attach image to reservation"
+            inserted.forEach { plate ->
+                check(db.update("captures", ContentValues().apply { put("uri", created.toString()) },
+                    "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending")) == 1) {
+                    "Cannot attach image to reservation"
+                }
             }
             val marked = annotate(frame, results, atMillis)
             try {
@@ -87,18 +87,26 @@ class DailyPlateStore(private val context: Context) : SQLiteOpenHelper(context, 
             }
             val published = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
             check(context.contentResolver.update(created, published, null, null) == 1) { "Image publish failed" }
-            check(db.update("captures", ContentValues().apply { put("state", "saved") },
-                "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending")) == 1) {
-                "Cannot commit plate reservation"
+            db.beginTransaction()
+            try {
+                inserted.forEach { plate ->
+                    check(db.update("captures", ContentValues().apply { put("state", "saved") },
+                        "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending")) == 1) {
+                        "Cannot commit plate reservation"
+                    }
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
             }
-            return true
+            return inserted
         } catch (e: Exception) {
-            // If deleting the photo fails, retain the reservation to prevent duplicates.
+            // If photo deletion fails, retain pending reservations to prevent duplicates.
             val cleanupUri = media
             val removed = cleanupUri == null || runCatching {
                 context.contentResolver.delete(cleanupUri, null, null)
             }.isSuccess
-            if (removed) {
+            if (removed) inserted.forEach { plate ->
                 db.delete("captures", "day=? AND plate=? AND state=?", arrayOf(day, plate, "pending"))
             }
             throw e

@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                 savedToday = store.countForDay(today)
                 engine = PlateEngine(this)
                 runOnUiThread {
-                    status.text = "模型就緒 · 今日已保存 $savedToday 張 · 掃描中"
+                    status.text = "模型就緒 · 今日已保存 $savedToday 個車牌 · 掃描中"
                     if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         startCamera()
                     } else requestCamera.launch(Manifest.permission.CAMERA)
@@ -106,18 +106,15 @@ class MainActivity : AppCompatActivity() {
                 today = day
                 savedToday = store.countForDay(day)
             }
-            var lastSaved: String? = null
+            var lastSaved: List<String> = emptyList()
             var saveError: String? = null
-            gate.observe(results, day, SystemClock.elapsedRealtime()).forEach { candidate ->
-                try {
-                    if (store.saveOnce(day, candidate.text, frame, results, now)) {
-                        savedToday++
-                        lastSaved = candidate.text
-                    }
-                } catch (e: Exception) {
-                    gate.forget(candidate.text, day)
-                    saveError = e.message ?: "無法寫入相簿"
-                }
+            val candidates = gate.observe(results, day, SystemClock.elapsedRealtime())
+            try {
+                lastSaved = store.saveNew(day, candidates, frame, results, now)
+                savedToday += lastSaved.size
+            } catch (e: Exception) {
+                candidates.forEach { gate.forget(it.text, day) }
+                saveError = e.message ?: "無法寫入相簿"
             }
             val elapsed = SystemClock.elapsedRealtime() - started
             val imageWidth = frame.width
@@ -127,8 +124,8 @@ class MainActivity : AppCompatActivity() {
                     overlay.show(results, imageWidth, imageHeight)
                     status.text = when {
                         saveError != null -> "存檔失敗：$saveError"
-                        lastSaved != null -> "已存檔：$lastSaved · 今日 $savedToday 張 · ${elapsed}ms"
-                        else -> "即時辨識：${results.joinToString { it.text }.ifEmpty { "尋找車牌中" }} · 今日 $savedToday 張 · ${elapsed}ms"
+                        lastSaved.isNotEmpty() -> "已存檔：${lastSaved.joinToString()} · 今日 $savedToday 個車牌 · ${elapsed}ms"
+                        else -> "即時辨識：${results.joinToString { it.text }.ifEmpty { "尋找車牌中" }} · 今日 $savedToday 個車牌 · ${elapsed}ms"
                     }
                 }
             }
