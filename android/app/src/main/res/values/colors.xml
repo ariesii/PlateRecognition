@@ -1,0 +1,9 @@
+<resources>
+    <color name="asphalt">#14232C</color>
+    <color name="road_cyan">#2EABB3</color>
+    <color name="warning_amber">#E9B65E</color>
+    <color name="danger_red">#D85B51</color>
+    <color name="ivory">#F4F2EB</color>
+    <color name="muted_blue">#9AB0B8</color>
+    <color name="panel">#E514232C</color>
+</resources>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/asphalt" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="18dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <Button android:id="@+id/backLive" android:layout_width="wrap_content"
+                android:layout_height="48dp" android:text="返回即時" android:textAllCaps="false" />
+            <Button android:id="@+id/showEvents" android:layout_width="wrap_content"
+                android:layout_height="48dp" android:text="照片紀錄" android:textAllCaps="false" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="駕駛輔助設定" android:textColor="@color/ivory"
+            android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textSize="28sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="請在停車後操作。車道線和車距是影像估計，不能替代駕駛觀察。"
+            android:textColor="@color/warning_amber" android:textSize="15sp"
+            android:paddingBottom="12dp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@drawable/panel_surface" android:padding="14dp"
+            android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="提醒方式" android:textColor="@color/ivory" android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/adasSwitch"
+                android:layout_width="match_parent" android:layout_height="48dp"
+                android:text="顯示實驗性路況提醒" android:textColor="@color/ivory" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/soundSwitch"
+                android:layout_width="match_parent" android:layout_height="48dp"
+                android:text="提醒音" android:textColor="@color/ivory" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/vibrationSwitch"
+                android:layout_width="match_parent" android:layout_height="48dp"
+                android:text="震動" android:textColor="@color/ivory" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:background="@drawable/panel_surface"
+            android:padding="14dp" android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="跟車與車道" android:textColor="@color/ivory" android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" />
+            <TextView android:id="@+id/closeValue" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textColor="@color/muted_blue"
+                android:text="跟車過近提醒：12 公尺" />
+            <SeekBar android:id="@+id/closeSeek" android:layout_width="match_parent"
+                android:layout_height="48dp" android:max="31" />
+            <TextView android:id="@+id/centreValue" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textColor="@color/muted_blue"
+                android:text="車輛中心在畫面 50%" />
+            <SeekBar android:id="@+id/centreSeek" android:layout_width="match_parent"
+                android:layout_height="48dp" android:max="30" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="只在可信車道線與已校正的可見車牌上發出前車提醒；轉彎、變道時可能誤判。"
+                android:textColor="@color/muted_blue" android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:background="@drawable/panel_surface"
+            android:padding="14dp" android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="停車校正車距" android:textColor="@color/ivory" android:textSize="20sp"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="固定手機位置後，對準一張清楚的前車車牌，量測鏡頭至車牌的實際距離（2–80 公尺）；在五分鐘內選擇車牌並校正。更換位置或旋轉手機需重新校正。"
+                android:textColor="@color/muted_blue" android:textSize="14sp" />
+            <RadioGroup android:id="@+id/candidateGroup" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" />
+            <EditText android:id="@+id/knownMetres" android:layout_width="match_parent"
+                android:layout_height="48dp" android:hint="實測距離，例如 5.0 公尺"
+                android:inputType="numberDecimal" android:singleLine="true"
+                android:textColor="@color/ivory" android:textColorHint="@color/muted_blue" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button android:id="@+id/calibrateButton" android:layout_width="wrap_content"
+                    android:layout_height="48dp" android:text="用選取車牌校正" android:textAllCaps="false" />
+                <Button android:id="@+id/resetCalibration" android:layout_width="wrap_content"
+                    android:layout_height="48dp" android:text="清除校正" android:textAllCaps="false" />
+            </LinearLayout>
+            <TextView android:id="@+id/calibrationStatus" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="尚未校正，暫不顯示公尺。"
+                android:textColor="@color/road_cyan" android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

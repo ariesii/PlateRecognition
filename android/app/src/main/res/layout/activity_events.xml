@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@color/asphalt"
+    android:padding="16dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <Button android:id="@+id/backToLive" android:layout_width="wrap_content"
+            android:layout_height="48dp" android:text="返回即時" android:textAllCaps="false" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="16dp" android:text="車牌照片紀錄"
+            android:fontFamily="sans-serif-condensed" android:textStyle="bold"
+            android:textSize="25sp" android:textColor="@color/ivory" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <EditText android:id="@+id/searchPlate" android:layout_width="0dp"
+            android:layout_weight="1" android:layout_height="48dp"
+            android:hint="搜尋車牌" android:inputType="textCapCharacters"
+            android:singleLine="true" android:textColor="@color/ivory"
+            android:textColorHint="@color/muted_blue" />
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/todayOnly"
+            android:layout_width="wrap_content" android:layout_height="48dp"
+            android:layout_marginStart="12dp" android:gravity="center_vertical"
+            android:text="僅今天" android:textColor="@color/ivory" />
+    </LinearLayout>
+    <TextView android:id="@+id/recordCount" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:text="載入中…" android:textColor="@color/muted_blue"
+        android:textSize="13sp" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:fillViewport="true">
+        <LinearLayout android:id="@+id/recordList" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+    </ScrollView>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="8dp" android:text="刪除照片後，當日車牌仍不會自動重拍。"
+        android:textColor="@color/muted_blue" android:textSize="12sp" />
+</LinearLayout>

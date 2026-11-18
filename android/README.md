@@ -1,28 +1,41 @@
-# Android 即時車牌辨識（實作草稿）
+# Android 路況輔助與車牌紀錄
 
-本目錄是在 [pcb9382/PlateRecognition](https://github.com/pcb9382/PlateRecognition) 原始碼旁新增的 **Kotlin / CameraX / ONNX Runtime** 手機實作，不使用桌面版 CUDA／TensorRT `.so`。上游程式依 [MIT 授權](../LICENSE)；發佈 APK 前仍應自行確認原始 ONNX 模型所涉及的第三方授權。**目前未完成 Android 裝置與 APK 的實測驗收**，請勿將此目錄視為已驗證的商用辨識產品。
+這是 [pcb9382/PlateRecognition](https://github.com/pcb9382/PlateRecognition) 的 Android 離線實作：CameraX 串流、YOLOv5 車牌偵測、PP-OCRv6 文字辨識、事件照片紀錄，以及**實驗性**車道／車距／警示介面。桌面版 CUDA／TensorRT `.so` 不在手機上執行。上游程式的授權見 [LICENSE](../LICENSE)；若要商業發佈，仍需核對 ONNX 模型與圖片資產各自的權利。
 
-## 操作與規則
+## 操作介面
 
-- 開啟 App 並允許相機權限後，後鏡頭持續預覽；CameraX 丟棄落後影格，模型在背景執行緒逐張分析，畫面會顯示最近一次車牌結果與實測推論時間。這是連續串流的即時*更新*，並不保證每秒 30 次辨識。預覽框與實際儲存的標記以分析影格為準，部分裝置的預覽裁切可能造成預覽框少量偏移。
-- 同一文字連續兩個分析影格辨識一致（兩影格間不超過 4 秒）、包含拉丁字母和數字且長度 5–10，才會自動儲存當時的**完整分析影格** JPEG，標上所有偵測框、辨識字串和本機時間。不是延後拍攝的高畫素感光元件照片。
-- 去掉空格及分隔符並轉大寫的車牌文字 + **裝置當地日曆日期**構成唯一索引。同一 App 安裝、同一裝置上，同一車牌當天只會觸發一次存檔；App 重啟仍有效，隔天可以再存。多個不同車牌**同時首次確認**時共用一張標記完整畫面，資料庫分別記錄每個車牌；照片在手機相簿 `Pictures/PlateRecognition/`。
-- 清除 App 資料或重新安裝會清除去重紀錄，但相簿照片可能仍在；手動刪除照片不會清除當天紀錄。若 OCR 把同一實體車牌讀成不同字串，軟體無法嚴格判定它們相同；這是文字去重的限制，而非保證不會重複拍到同一輛車。
-- 除相機外不索取照片讀取、寫入儲存空間或網路權限；Android 10+ 使用 MediaStore 存檔。沒有自動上傳，也沒有選圖與手動拍照。
+- **即時**：固定手機於前擋、打開 App 並允許相機。預覽上顯示車牌、可信車道帶及**已校正時**的車距估值。下方顯示今日儲存車牌數、最近一筆、推論耗時和失敗原因；可暫停／繼續分析、開關自動存照。預覽不中斷不代表辨識每秒 30 幀：裝置推論較慢時 CameraX 會丟棄舊影格。
+- **紀錄**：點「紀錄」瀏覽最近 200 筆，依車牌搜尋或限今天，查看／分享照片；刪除需二次確認。同張照片如果有多張車牌，會保留到最後一個關聯刪除。已刪除或手動從相簿移除的照片仍保留當日去重鍵，不會立即重拍。
+- **設定／校正**：**務必停車後操作**。可開關實驗性警示、提醒音、震動，調整跟車提醒門檻與車輛中心線在畫面的相對位置。固定相機位置後對準一張清晰車牌，量測**鏡頭到車牌**實距；五分鐘內在設定頁選該車牌、輸入 2–80 公尺並確認。移動支架、改變焦距、旋轉裝置或更換不同尺寸牌型後需重新校正。
 
-## 模型與管線
+## 自動存照與資料
 
-| 用途 | 上游檔案 | 大小 | SHA-256 |
+同一文字連續兩個分析影格辨識一致（相隔不超過四秒）、包含字母與數字且長度 5–10，才會自動儲存一張附車牌、時間與當下可信疊圖的**完整分析影格** JPEG；不是高解析度相機原始照片。保存到相簿 `Pictures/PlateRecognition/`，以手機**當地日期 + 正規化車牌文字**去重。App 重啟仍有效、隔天可再拍；同框首次確認多個車牌只建立**一張**影像，資料庫分別登記。關閉「自動存照」只停止寫照片，辨識與警示仍可繼續。照片不會上傳，App 不要求網路或相簿讀取權限（僅相機及可選震動）。
+
+資料由 Android SQLite v1 無損升級至 v2；舊照片仍保留去重鍵，若沒有舊版時間資料，紀錄頁會標註「舊版紀錄」。清除 App 資料／重新安裝會失去資料庫去重鍵，但相簿照片可能仍存在。辨識錯誤而把同一實體車牌讀成不同文字時，無法保證不再拍到該車。
+
+## 車道、車距與警示的限制
+
+本版**沒有新增外部模型**：車道使用畫面下半部的明亮白／黃標線、邊緣與斜線一致性做傳統影像處理。只有雙邊線幾何與時序信心足夠時才畫透視車道帶，否則顯示「車道未偵測」。彎道、陰影、雨雪、逆光、夜間或施工線容易失敗。
+
+車距只用**可清楚辨識車牌**的影像寬度與使用者實距校正值作單目反比估算，顯示 `~` 公尺；未校正、超出範圍、牌框裁切或嚴重傾斜時顯示「不可用」，不編造數值。它不是測距儀；不同牌照實體尺寸、車牌角度、鏡頭位置、斜坡、變焦、橫向位移與顛簸都會造成誤差。對同車道車牌，連續跟車估值小於設定門檻才提醒「前車過近」，距離下降且估計接近時間小於約 3 秒才提醒「接近速度偏快」；可信車道偏移連續出現才提醒「車道位置偏移」。警示有約 8 秒冷卻，聲音與震動預設關閉，可自行啟用。**看不見車牌的車輛不會被偵測，也沒有轉向燈或實際車速資料；此原型不能作駕駛決策或替代經認證 ADAS。**
+
+## 建置與驗證
+
+原有模型仍在上游檔案路徑；Gradle 建置時自動複製到 APK assets：
+
+| 模型 | 路徑 | 大小 | SHA-256 |
 | --- | --- | ---: | --- |
-| YOLOv5 車牌／四角檢測 | `../PLateDetection_yolov5/test/yolov5plate.onnx` | 3,838,666 B | `472ec204f4866824287cb4093cf11e5b6ef355a35447f3969120288dd01b0161` |
-| PP-OCRv6 medium 文字辨識 | `../PlateRecognitionOCRV6/models/medium/inference.onnx` | 76,554,979 B | `9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba` |
+| YOLOv5 車牌 | `../PLateDetection_yolov5/test/yolov5plate.onnx` | 3,838,666 B | `472ec204f4866824287cb4093cf11e5b6ef355a35447f3969120288dd01b0161` |
+| PP-OCRv6 medium | `../PlateRecognitionOCRV6/models/medium/inference.onnx` | 76,554,979 B | `9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba` |
 
-Gradle 在建置時從上游相對路徑複製這兩個模型到 `app/build/generated/modelAssets/`，不把相同的大模型再提交一次。第一次啟動會把模型從 APK assets 複製到 App 私有空間供 ONNX Runtime 開啟，因此 APK 和私有儲存空間都需預留模型容量。Detector 為 RGB 640×640 letterbox，OCR 為透視校正之 BGR 高 48／動態寬度；77 字元 sparse index 來自上游 `PlateRecognitionOCRV6/src/OCRV6Text.cpp`。前處理與映射須與原始模型一致，不代表上游宣稱的 99%+ 精度。台灣及其他地區需以實際現場樣本驗證；本 OCR 的允許字元並不涵蓋所有國家／特殊牌型。
+需要 JDK 17、Android SDK 35、API 29+ 裝置；本機依使用者選擇**不安裝** JDK／SDK。推送到 GitHub fork 功能分支後，[`Android debug APK` 工作流程](../.github/workflows/android.yml)會核對模型 SHA-256、遠端執行 `:app:assembleDebug`，成功時從該次 Actions 的 `plate-recognition-debug-apk` 下載 APK。官方 Gradle 8.9 wrapper JAR 雜湊與[官方校驗值](https://gradle.org/release-checksums/)相符。
 
-## 建置與目前障礙
+使用者已回報上一版車牌辨識有效、照片已有儲存但難以操作。**新版車道、車距、紀錄與警示尚無實機驗證**：目前 `adb devices -l` 無裝置，ARTEMIS 缺多模態 API key。須先在真實裝置與固定支架／實測距離下檢查：v1→v2 升級、相簿檢視、關閉存照／再啟用、同日去重及隔日、刪除共享照片、車道誤檢、不同距離／夜雨光線、提示冷卻及音量；沒有這些驗證就不能宣稱警示可靠。ARTEMIS key 應放在本機 `.env`，**不要貼到對話**。
 
-需要 JDK 17、Android SDK 35、支援 API 29+ 的 Android 手機，以及可以下載 Google Maven/Maven Central 相依套件的開發機。Android Studio 開啟此 `android/` 資料夾即可同步 Gradle；正常情況下 Windows 可由此目錄執行 `gradlew.bat :app:assembleDebug` 並以 Android Studio 安裝 `app/build/outputs/apk/debug/app-debug.apk`。
+## 後續系統建議
 
-**目前採用 GitHub Actions 遠端編譯，不在這台電腦安裝 JDK／Android SDK。**將變更上傳到自己的 GitHub fork 後，[`Android debug APK`](../.github/workflows/android.yml) 工作流程會在 Ubuntu 使用 JDK 17、Android SDK 35 驗證模型 SHA-256 並執行 `:app:assembleDebug`，成功後在該次 Actions 的 `plate-recognition-debug-apk` artifact 下載 APK。官方 Gradle 8.9 wrapper 已取得，`gradle-wrapper.jar` 的 SHA-256 與[官方公告](https://gradle.org/release-checksums/)相符；本機仍沒有 JDK／Android SDK，也尚無連上的 Android 裝置，因此**本機**不能執行 Gradle 編譯或實機驗收。上游模型的檔案大小與 SHA-256 已核對；ONNX Runtime 載入、現場攝影機路徑、Android UI 自動化及跨日／同日去重的實機測試均尚未完成。ARTEMIS 診斷目前顯示沒有裝置／模擬器，且需要在其 `.env` 設定多模態模型 API key 後重新載入 MCP server；請勿在對話貼上 key。
-
-要完成驗收，請準備 Android Studio/JDK/SDK 與已授權 USB 偵錯的手機，並依照 [CameraX 分析文件](https://developer.android.com/media/camera/camerax/analyze) 檢查串流時序及 [MediaStore 文件](https://developer.android.com/training/data-storage/shared/media) 檢查相簿存檔。相機畫面必須在裝置上實測，不能以靜態照片測試取代。
+1. 蒐集固定機位、已量測實距的日夜／雨天資料，量化各距離與車道線的誤差／漏檢率；未達標時維持「不可用」。
+2. 量測手機的推論延遲、電池與溫度，做節流與耗電策略，確保預覽不中斷，避免長時間高溫影響手機。
+3. 設定事件照片保留期限與匯出／刪除政策，評估車牌個資與當地法規；分享照片前由使用者手動確認。
+4. 如果要偵測**看不到車牌**的車、在彎道／夜間提供真正的碰撞輔助，需另有可授權、已驗證的車道／車輛模型與更可靠的深度感測或雷達，不應靠本版演算法假裝已有能力。

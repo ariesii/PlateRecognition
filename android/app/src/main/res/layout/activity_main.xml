@@ -2,15 +2,70 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="#101820">
+    android:background="@color/asphalt">
     <androidx.camera.view.PreviewView android:id="@+id/preview"
         android:layout_width="match_parent" android:layout_height="match_parent"
         app:implementationMode="compatible" />
     <com.example.platerecognition.camera.PlateOverlay android:id="@+id/overlay"
-        android:layout_width="match_parent" android:layout_height="match_parent" />
-    <TextView android:id="@+id/status"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_gravity="bottom" android:background="#DD101820"
-        android:padding="16dp" android:textColor="#FFFFFF" android:textSize="16sp"
-        android:text="@string/initializing" />
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|start" android:orientation="vertical"
+        android:layout_margin="12dp" android:padding="12dp"
+        android:background="@drawable/panel_surface">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="路況輔助  /  LIVE" android:textColor="@color/ivory"
+            android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textSize="20sp" />
+        <TextView android:id="@+id/featureStatus" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/initializing"
+            android:textColor="@color/muted_blue" android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/warningBanner" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:layout_gravity="top|end"
+        android:layout_margin="12dp" android:padding="12dp" android:visibility="gone"
+        android:background="@drawable/panel_surface"
+        android:textColor="@color/warning_amber" android:textSize="18sp"
+        android:fontFamily="sans-serif-condensed" android:textStyle="bold"
+        android:contentDescription="駕駛提示" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="bottom" android:orientation="vertical"
+        android:background="#EA14232C" android:paddingStart="14dp" android:paddingEnd="14dp"
+        android:paddingTop="8dp" android:paddingBottom="8dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/status" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="@string/initializing" android:textColor="@color/ivory"
+                android:textSize="15sp" android:maxLines="2" />
+            <TextView android:id="@+id/distanceStatus" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:paddingStart="12dp"
+                android:text="距離 · 未校正" android:textColor="@color/road_cyan"
+                android:fontFamily="monospace" android:textSize="14sp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+            <Button android:id="@+id/pauseButton" android:layout_width="wrap_content"
+                android:layout_height="48dp" android:text="暫停分析"
+                android:textAllCaps="false" android:contentDescription="暫停或繼續影像分析" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/autoSaveSwitch"
+                android:layout_width="wrap_content" android:layout_height="48dp"
+                android:gravity="center_vertical" android:layout_marginStart="12dp"
+                android:text="自動存照" android:textColor="@color/ivory"
+                android:contentDescription="自動儲存當天首次辨識的車牌" />
+            <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <Button android:id="@+id/eventsButton" android:layout_width="wrap_content"
+                android:layout_height="48dp" android:text="紀錄"
+                android:textAllCaps="false" android:contentDescription="查看車牌照片紀錄" />
+            <Button android:id="@+id/settingsButton" android:layout_width="wrap_content"
+                android:layout_height="48dp" android:text="設定／校正"
+                android:textAllCaps="false" android:contentDescription="開啟警示與距離校正設定" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/experimental" android:textSize="11sp"
+            android:textColor="@color/muted_blue" android:gravity="end" />
+    </LinearLayout>
 </FrameLayout>
