@@ -229,8 +229,8 @@ class MainActivity : AppCompatActivity() {
                 if (isDestroyed || paused) return@runOnUiThread
                 overlay.show(scene)
                 status.text = statusLabel
-                featureStatus.text = if (lane != null) "車道已追蹤 · ${plates.size} 張可見車牌"
-                    else "車道未偵測 · ${plates.size} 張可見車牌"
+                featureStatus.text = (if (lane != null) "車道已追蹤" else "車道未偵測") +
+                    " · ${plates.size} 張可見車牌" + (if (settings.adasEnabled) "" else " · 警示關閉")
                 distanceStatus.text = distanceLabel
                 warningBanner.visibility = if (activeWarning != null) View.VISIBLE else View.GONE
                 if (activeWarning != null) {
@@ -248,15 +248,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun alert(warning: DriveWarning) {
         if (settings.soundEnabled) {
-            if (tone == null) tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 65)
-            tone?.startTone(ToneGenerator.TONE_PROP_BEEP,
-                if (warning.kind == WarningKind.CLOSING) 280 else 150)
+            if (tone == null) tone = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 65) }.getOrNull()
+            runCatching {
+                tone?.startTone(ToneGenerator.TONE_PROP_BEEP,
+                    if (warning.kind == WarningKind.CLOSING) 280 else 150)
+            }
         }
         if (settings.vibrationEnabled) {
-            val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
-            if (vibrator.hasVibrator()) vibrator.vibrate(VibrationEffect.createOneShot(
-                if (warning.kind == WarningKind.CLOSING) 280 else 150,
-                VibrationEffect.DEFAULT_AMPLITUDE))
+            val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            if (vibrator?.hasVibrator() == true) runCatching {
+                vibrator.vibrate(VibrationEffect.createOneShot(
+                    if (warning.kind == WarningKind.CLOSING) 280 else 150,
+                    VibrationEffect.DEFAULT_AMPLITUDE))
+            }
         }
     }
 
