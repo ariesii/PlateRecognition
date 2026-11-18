@@ -17,7 +17,7 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("auto_save", true)
         set(value) { prefs.edit().putBoolean("auto_save", value).apply() }
     var adasEnabled: Boolean
-        get() = prefs.getBoolean("adas", true)
+        get() = prefs.getBoolean("adas", false) // Opt-in: never arm experimental warnings by default.
         set(value) { prefs.edit().putBoolean("adas", value).apply() }
     var soundEnabled: Boolean
         get() = prefs.getBoolean("sound", false)

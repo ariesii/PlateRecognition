@@ -45,7 +45,7 @@ class WarningEngine {
         closingHits = if (front != null && front.metres < 35f && ttc != null && ttc < 3f)
             closingHits + 1 else 0
         val candidate = when {
-            closingHits >= 3 -> DriveWarning(WarningKind.CLOSING, "接近速度偏快，請留意前方")
+            closingHits >= 3 -> DriveWarning(WarningKind.CLOSING, "估計前方接近過快 · 留意碰撞風險")
             closeHits >= 2 -> DriveWarning(WarningKind.FOLLOWING, "估計跟車距離偏近")
             laneHits >= 3 -> DriveWarning(WarningKind.LANE, "車道位置偏移，請留意路況")
             else -> null

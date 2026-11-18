@@ -106,10 +106,11 @@ class EventsActivity : AppCompatActivity() {
         })
         val time = if (row.capturedAt > 0) SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.TAIWAN)
             .format(Date(row.capturedAt)) else "${row.day} · 舊版紀錄"
-        details.addView(TextView(this).apply {
+        val subtitle = TextView(this).apply {
             text = "$time  ·  ${if (row.deleted) "已刪除（今日仍去重）" else "已存檔"}"
             textSize = 13f; setTextColor(0xFF9AB0B8.toInt())
-        })
+        }
+        details.addView(subtitle)
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         details.addView(actions)
         if (!row.deleted && row.uri != null) {
@@ -121,7 +122,10 @@ class EventsActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (ticket == generation && !isDestroyed && image.parent != null) {
                         if (thumb != null) image.setImageBitmap(thumb)
-                        else image.contentDescription = "照片已移除，但今日車牌紀錄仍保留"
+                        else {
+                            image.contentDescription = "照片已移除，但今日車牌紀錄仍保留"
+                            subtitle.text = "$time · 照片已移除（今日仍去重）"
+                        }
                     } else thumb?.recycle()
                 }
             }
