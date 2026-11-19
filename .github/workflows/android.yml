@@ -31,10 +31,34 @@ jobs:
             '472ec204f4866824287cb4093cf11e5b6ef355a35447f3969120288dd01b0161' 'PLateDetection_yolov5/test/yolov5plate.onnx' \
             '9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba' 'PlateRecognitionOCRV6/models/medium/inference.onnx' \
             | sha256sum --check
+      - name: Prepare fixed debug signing key
+        env:
+          ENCODED_KEYSTORE: ${{ secrets.PLATE_DEBUG_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.PLATE_DEBUG_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$ENCODED_KEYSTORE" && test -n "$KEYSTORE_PASSWORD" || {
+            printf '%s\n' 'Fixed debug signing secrets are missing.' >&2
+            exit 1
+          }
+          umask 077
+          printf '%s' "$ENCODED_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/plate-debug.p12"
+          openssl pkcs12 -info -noout -in "$RUNNER_TEMP/plate-debug.p12" -passin env:KEYSTORE_PASSWORD >/dev/null 2>&1
       - name: Assemble debug APK
+        env:
+          PLATE_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/plate-debug.p12
+          PLATE_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.PLATE_DEBUG_KEYSTORE_PASSWORD }}
         run: bash android/gradlew --project-dir android :app:assembleDebug --stacktrace
+      - name: Verify APK uses fixed certificate
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/debug/app-debug.apk \
+            | tee "$RUNNER_TEMP/apk-signature.txt"
+          grep -Fq 'Signer #1 certificate SHA-256 digest: d359e1226c9ef65b8d034fc52c5db9b1675632633cfe8ed3db6df25b82df102a' \
+            "$RUNNER_TEMP/apk-signature.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: plate-recognition-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/plate-debug.p12"

@@ -3,6 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// CI passes a private PKCS#12 key from GitHub Secrets. Local Android Studio
+// builds without these variables keep Android's normal per-machine debug key.
+val fixedDebugStore = providers.environmentVariable("PLATE_DEBUG_KEYSTORE_PATH").orNull
+val fixedDebugPassword = providers.environmentVariable("PLATE_DEBUG_KEYSTORE_PASSWORD").orNull
+
 android {
     namespace = "com.example.platerecognition"
     compileSdk = 35
@@ -11,12 +16,29 @@ android {
         applicationId = "com.example.platerecognition"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (!fixedDebugStore.isNullOrBlank()) {
+            create("fixedDebug") {
+                require(!fixedDebugPassword.isNullOrBlank()) { "Fixed debug password is missing" }
+                storeFile = file(fixedDebugStore)
+                require(storeFile?.isFile == true) { "Fixed debug keystore is missing" }
+                storeType = "pkcs12"
+                storePassword = fixedDebugPassword
+                keyAlias = "plate-debug"
+                keyPassword = fixedDebugPassword
+            }
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            if (!fixedDebugStore.isNullOrBlank()) signingConfig = signingConfigs.getByName("fixedDebug")
+        }
         release {
             isMinifyEnabled = false
         }

@@ -33,7 +33,7 @@
 
 使用者已回報上一版車牌辨識有效、照片已有儲存但難以操作。**新版車道、車距、紀錄與警示尚無實機驗證**：目前 `adb devices -l` 無裝置，ARTEMIS 缺多模態 API key。須先在真實裝置與固定支架／實測距離下檢查：v1→v2 升級、相簿檢視、關閉存照／再啟用、同日去重及隔日、刪除共享照片、車道誤檢、不同距離／夜雨光線、提示冷卻及音量；沒有這些驗證就不能宣稱警示可靠。ARTEMIS key 應放在本機 `.env`，**不要貼到對話**。
 
-**測試版更新注意：**GitHub 的臨時建置機通常每次產生不同的 debug 簽章；若安裝新版時顯示 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，需要先備份需要的資料再移除舊 App。卸載會清除舊 SQLite 紀錄與當日去重鍵，雖然相簿照片可能仍在。程式內建 v1→v2 資料庫遷移僅適用**簽章相同、可直接覆蓋安裝**的情況。要在往後測試版之間保留紀錄，建議將固定的簽署金鑰安全存於 GitHub Secrets，切勿提交私鑰到公開原碼倉庫。
+**測試版更新注意：**此分支的 GitHub Actions 使用 Repository Secrets `PLATE_DEBUG_KEYSTORE_B64` 與 `PLATE_DEBUG_KEYSTORE_PASSWORD` 中的固定 PKCS#12 測試金鑰簽署 debug APK；Secrets 缺失時工作流程直接失敗，私鑰不會提交到公開原碼倉庫。**首次切換固定簽章**時，它無法與先前臨時建置機產生的隨機 debug 簽章相同：若安裝新版顯示 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，需先備份需要的資料再卸載舊 App。卸載會清除舊 SQLite 紀錄與當日去重鍵，相簿照片可能仍在；v1→v2 資料庫遷移只有在簽章相同、可覆蓋安裝時才會執行。從第一次安裝**固定簽章版**開始，往後同一 Repository Secrets 產出的版本可直接更新；若 Secrets 遺失或更換金鑰，升級連續性會再次中斷。本機未設相同金鑰環境變數時會使用 Android Studio 自己的 debug 簽章，不能拿來覆蓋 GitHub 版。
 
 ## 後續系統建議
 
