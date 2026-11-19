@@ -15,7 +15,8 @@ class PlateTracker {
                      val confirmed: Boolean)
     data class Snapshot(val confirmed: List<PlateResult>, val pending: List<PlateDetection>)
     private data class Track(var detection: PlateDetection, var text: String?, var verifiedAt: Long,
-                             var lastMatched: Long, var lastDetected: Long, var confirmed: Boolean)
+                             var lastMatched: Long, var lastDetected: Long, var confirmed: Boolean,
+                             var origin: PlateDetection, var originAt: Long)
     private val tracks = mutableListOf<Track>()
     private var previous: GrayFrame? = null
     private val maxTrackAgeMs = 1_800L
@@ -73,6 +74,8 @@ class PlateTracker {
                 existing.detection = aligned
                 existing.lastMatched = current.observedAt
                 existing.lastDetected = current.observedAt
+                existing.origin = detection
+                existing.originAt = snapshotFrame.observedAt
                 if (read != null) {
                     if (existing.text != read.text) existing.confirmed = false
                     existing.text = read.text; existing.verifiedAt = now
@@ -81,7 +84,8 @@ class PlateTracker {
                 used += existing
             } else {
                 val added = Track(aligned, read?.text, if (read == null) 0L else now,
-                    current.observedAt, current.observedAt, read?.text in confirmedTexts)
+                    current.observedAt, current.observedAt, read?.text in confirmedTexts,
+                    detection, snapshotFrame.observedAt)
                 tracks += added
                 used += added
             }
@@ -89,6 +93,20 @@ class PlateTracker {
         tracks.removeAll { it.lastMatched < current.observedAt - maxTrackAgeMs ||
             it.lastDetected < current.observedAt - 3_000L }
         return snapshot(current.observedAt)
+    }
+
+    /** Attach delayed OCR only to the exact detection still being visually tracked. */
+    fun applyRecognitions(originAt: Long, results: List<PlateResult>, now: Long,
+                          confirmedTexts: Set<String>): Snapshot {
+        results.forEach { result ->
+            val track = tracks.firstOrNull { it.originAt == originAt && it.origin == result.detection }
+                ?: return@forEach
+            if (track.text != result.text) track.confirmed = false
+            track.text = result.text
+            track.verifiedAt = now
+            if (result.text in confirmedTexts) track.confirmed = true
+        }
+        return snapshot(previous?.observedAt ?: now)
     }
 
     private fun snapshot(now: Long): Snapshot {

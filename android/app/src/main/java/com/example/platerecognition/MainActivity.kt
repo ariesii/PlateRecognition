@@ -279,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         val confirmedTexts = stable.map { it.text }.toSet() + cached.map { it.text }
         cameraWorker.execute {
             if (!stopped && token == session && !paused) {
-                val snapshot = tracker.reconcile(sample, detections, fresh, done, confirmedTexts)
+                val snapshot = tracker.applyRecognitions(sample.observedAt, fresh, done, confirmedTexts)
                 known = tracker.known()
                 render(snapshot, sample, source, token)
             }
