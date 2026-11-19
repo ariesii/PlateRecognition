@@ -19,6 +19,9 @@ class AppSettings(context: Context) {
     var adasEnabled: Boolean
         get() = prefs.getBoolean("adas", false) // Opt-in: never arm experimental warnings by default.
         set(value) { prefs.edit().putBoolean("adas", value).apply() }
+    var recognitionSoundEnabled: Boolean
+        get() = prefs.getBoolean("recognition_sound", true)
+        set(value) { prefs.edit().putBoolean("recognition_sound", value).apply() }
     var soundEnabled: Boolean
         get() = prefs.getBoolean("sound", false)
         set(value) { prefs.edit().putBoolean("sound", value).apply() }

@@ -1,7 +1,6 @@
 package com.example.platerecognition.vision
 
-import android.graphics.Bitmap
-import android.graphics.Color
+import com.example.platerecognition.camera.GrayFrame
 import com.example.platerecognition.recognition.Point
 import kotlin.math.abs
 import kotlin.math.max
@@ -37,24 +36,9 @@ class LaneAnalyzer {
     private var previous: LaneEstimate? = null
     private var lastTime = 0L
 
-    fun analyze(image: Bitmap, now: Long): LaneEstimate? {
-        val sampleWidth = 320
-        val sampleHeight = max(90, (image.height * 320f / image.width).toInt())
-        val sample = Bitmap.createScaledBitmap(image, sampleWidth, sampleHeight, true)
-        val pixels = IntArray(sampleWidth * sampleHeight)
-        try { sample.getPixels(pixels, 0, sampleWidth, 0, 0, sampleWidth, sampleHeight) }
-        finally { if (sample !== image) sample.recycle() }
-
-        val lum = IntArray(pixels.size)
-        val marks = BooleanArray(pixels.size)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            val r = Color.red(p); val g = Color.green(p); val b = Color.blue(p)
-            val brightness = (r * 3 + g * 6 + b) / 10
-            lum[i] = brightness
-            marks[i] = (brightness >= 145 && max(r, max(g, b)) - min(r, min(g, b)) < 62) ||
-                (r >= 135 && g >= 100 && b < 130 && r > b * 1.35)
-        }
+    fun analyze(frame: GrayFrame, now: Long): LaneEstimate? {
+        val sampleWidth = frame.width
+        val sampleHeight = frame.height
         val left = ArrayList<PixelPoint>()
         val right = ArrayList<PixelPoint>()
         val startY = (sampleHeight * 0.46f).toInt()
@@ -62,8 +46,8 @@ class LaneAnalyzer {
         for (y in startY until endY step 2) {
             for (x in 2 until sampleWidth - 2 step 2) {
                 val i = y * sampleWidth + x
-                if (!marks[i]) continue
-                val contrast = abs(lum[i + 2] - lum[i - 2])
+                if (frame.laneMarks[i].toInt() == 0) continue
+                val contrast = abs(frame.luma(x + 2, y) - frame.luma(x - 2, y))
                 if (contrast < 38) continue
                 val point = PixelPoint(x, y)
                 if (x < sampleWidth / 2) left += point else right += point
@@ -85,16 +69,16 @@ class LaneAnalyzer {
             previous = null
             return null
         }
-        val sx = image.width / sampleWidth.toFloat()
-        val sy = image.height / sampleHeight.toFloat()
+        val sx = frame.imageWidth / sampleWidth.toFloat()
+        val sy = frame.imageHeight / sampleHeight.toFloat()
         val detected = LaneEstimate(
             Point(leftLine.x(top) * sx, top * sy), Point(leftLine.x(bottom) * sx, bottom * sy),
             Point(rightLine.x(top) * sx, top * sy), Point(rightLine.x(bottom) * sx, bottom * sy),
             min(1f, min(leftLine.count, rightLine.count) / 38f) *
-                min(1f, min(leftLine.span, rightLine.span) / 55f), image.width, image.height)
+                min(1f, min(leftLine.span, rightLine.span) / 55f), frame.imageWidth, frame.imageHeight)
         if (detected.confidence < 0.48f) { previous = null; return null }
         val old = previous
-        val result = if (old != null && old.width == image.width && old.height == image.height &&
+        val result = if (old != null && old.width == frame.imageWidth && old.height == frame.imageHeight &&
             now - lastTime in 0L..1500L) {
             fun blend(a: Point, b: Point) = Point(a.x * 0.55f + b.x * 0.45f, b.y)
             detected.copy(leftTop = blend(old.leftTop, detected.leftTop),

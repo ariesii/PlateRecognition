@@ -2,16 +2,19 @@ package com.example.platerecognition.vision
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import com.example.platerecognition.recognition.PlateDetection
 import com.example.platerecognition.recognition.PlateResult
 
 /** All coordinates are in the rotated analysis frame, never in the PreviewView. */
 data class DriveScene(val plates: List<PlateResult>, val lane: LaneEstimate?,
                       val distances: List<DistanceReading>, val width: Int, val height: Int,
-                      val warning: DriveWarning? = null)
+                      val warning: DriveWarning? = null,
+                      val provisional: List<PlateDetection> = emptyList())
 
 /** Shared renderer for the live camera HUD and saved full-frame evidence. */
 object ScenePainter {
@@ -49,6 +52,14 @@ object ScenePainter {
         }
         val metric = Paint(text).apply { typeface = Typeface.MONOSPACE }
         val background = Paint().apply { color = 0xDD14232C.toInt() }
+        val provisionalOutline = Paint(outline).apply {
+            color = 0xFF9AB0B8.toInt()
+            pathEffect = DashPathEffect(floatArrayOf(stroke * 3f, stroke * 2f), 0f)
+        }
+        scene.provisional.forEach { candidate ->
+            val b = candidate.box
+            canvas.drawRect(b.left, b.top, b.right, b.bottom, provisionalOutline)
+        }
         scene.plates.forEach { plate ->
             val box = plate.detection.box
             val distance = scene.distances.firstOrNull { it.text == plate.text }

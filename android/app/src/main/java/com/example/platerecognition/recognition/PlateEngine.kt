@@ -55,24 +55,27 @@ class PlateEngine(context: Context) : AutoCloseable {
         }
     }
 
-    fun recognize(frame: Bitmap): List<PlateResult> {
+    fun detect(frame: Bitmap): List<PlateDetection> {
         val input = prepareDetector(frame)
         val detected = infer(detector, detectorInput, input, longArrayOf(1, 3, 640, 640))
-        val plates = DetectorMath.decode(detected.first, detected.second, frame.width, frame.height)
-        return plates.mapNotNull { detection ->
-            val corrected = rectify(frame, detection) ?: return@mapNotNull null
-            val crop = if (detection.doubleRow) splitDoubleRow(corrected) else corrected
-            try {
-                val (ocrInputData, width) = prepareOcr(crop)
-                val output = infer(ocr, ocrInput, ocrInputData, longArrayOf(1, 3, 48, width.toLong()))
-                val text = OcrDecoder.decode(output.first, output.second)
-                if (text.isBlank()) null else PlateResult(detection, text)
-            } finally {
-                if (crop !== corrected) crop.recycle()
-                corrected.recycle()
-            }
+        return DetectorMath.decode(detected.first, detected.second, frame.width, frame.height)
+    }
+
+    fun readPlate(frame: Bitmap, detection: PlateDetection): PlateResult? {
+        val corrected = rectify(frame, detection) ?: return null
+        val crop = if (detection.doubleRow) splitDoubleRow(corrected) else corrected
+        try {
+            val (ocrInputData, width) = prepareOcr(crop)
+            val output = infer(ocr, ocrInput, ocrInputData, longArrayOf(1, 3, 48, width.toLong()))
+            val text = OcrDecoder.decode(output.first, output.second)
+            return if (text.isBlank()) null else PlateResult(detection, text)
+        } finally {
+            if (crop !== corrected) crop.recycle()
+            corrected.recycle()
         }
     }
+
+    fun recognize(frame: Bitmap): List<PlateResult> = detect(frame).mapNotNull { readPlate(frame, it) }
 
     override fun close() {
         ocr.close()
@@ -104,17 +107,15 @@ class PlateEngine(context: Context) : AutoCloseable {
                 require(result.size() == 1) { "Model must have one output" }
                 val tensor = result[0] as OnnxTensor
                 val dimensions = (tensor.info as TensorInfo).shape
-                @Suppress("UNCHECKED_CAST")
-                val batches = tensor.value as Array<Array<FloatArray>>
-                require(batches.size == 1 && dimensions.size == 3)
-                val rows = batches[0]
-                val columns = dimensions[2].toInt()
-                require(dimensions[1] == rows.size.toLong() && columns > 0)
-                val flat = FloatArray(rows.size * columns)
-                rows.forEachIndexed { index, row ->
-                    require(row.size == columns)
-                    row.copyInto(flat, index * columns)
+                require(dimensions.size == 3 && dimensions[0] == 1L &&
+                    dimensions[1] > 0 && dimensions[2] > 0 &&
+                    dimensions[1] * dimensions[2] <= Int.MAX_VALUE) {
+                    "Unexpected output shape: ${dimensions.contentToString()}"
                 }
+                val flat = FloatArray((dimensions[1] * dimensions[2]).toInt())
+                val buffer = checkNotNull(tensor.floatBuffer) { "Model output must contain floats" }
+                require(buffer.remaining() == flat.size) { "Output tensor size mismatch" }
+                buffer.get(flat)
                 return flat to dimensions
             }
         }

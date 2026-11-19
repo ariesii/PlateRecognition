@@ -32,6 +32,10 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.showEvents).setOnClickListener {
             startActivity(Intent(this, EventsActivity::class.java))
         }
+        findViewById<SwitchCompat>(R.id.recognitionSoundSwitch).apply {
+            isChecked = settings.recognitionSoundEnabled
+            setOnCheckedChangeListener { _, checked -> settings.recognitionSoundEnabled = checked }
+        }
         findViewById<SwitchCompat>(R.id.adasSwitch).apply {
             isChecked = settings.adasEnabled
             setOnCheckedChangeListener { _, checked -> settings.adasEnabled = checked }
