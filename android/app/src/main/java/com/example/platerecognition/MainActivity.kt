@@ -320,7 +320,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render(snapshot: PlateTracker.Snapshot, sample: GrayFrame, source: OutputTransform, token: Int) {
-        val scene = DriveScene(snapshot.confirmed, lane, emptyList(), sample.imageWidth, sample.imageHeight,
+        val visibleNames = snapshot.confirmed.map { it.text }.toSet()
+        val recentReadings = if (sample.observedAt - lastInferenceTime in 0L..1_500L)
+            readings.filter { it.text in visibleNames } else emptyList()
+        val scene = DriveScene(snapshot.confirmed, lane, recentReadings, sample.imageWidth, sample.imageHeight,
             provisional = snapshot.pending)
         runOnUiThread {
             if (stopped || paused || token != session) return@runOnUiThread
